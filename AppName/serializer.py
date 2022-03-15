@@ -9,7 +9,6 @@ class SignUp(Serializer):
     email=EmailField(max_length=32)
     username = CharField(max_length=20)
 
-
     def validate(self, data):
         username=data.get('username')
         email = data.get('email')
@@ -24,8 +23,9 @@ class SignUp(Serializer):
         email = validated_data.get('email')
         password = validated_data.get('password')
         username = validated_data.get('username')
+        user_type=validated_data.get('user_type')
 
-        user=User.objects.create_user(first_name=first_name,last_name=last_name,email=email,username=username, is_staff=True)
+        user=User.objects.create_user(first_name=first_name,last_name=last_name,email=email,username=username,user_type=1)
         user.set_password(password)
         user.save()
         return validated_data
@@ -38,7 +38,17 @@ class SignUp(Serializer):
         return validated_data
 
 
-class NoteSerializer(ModelSerializer):
-    class Meta:
-        model=Notes
-        fields=('__all__')
+class NoteSerializer(Serializer):
+    name=CharField(max_length=30, error_messages={'required':"Name is required","blank":"name cannot be blank"})
+    description=CharField(max_length=60, error_messages={'required':"desc is required","blank":"desc cannot be blank"})
+
+    def create(self, data ):
+
+        Notes.objects.create(user=self.context.get('user'), name=data.get('name'),description=data.get('description')).save()
+        return data
+
+    def update(self, instance, validated_data):
+        instance.name = validated_data.get('name')
+        instance.description = validated_data.get('description')
+        instance.save()
+        return validated_data
