@@ -2,6 +2,11 @@ from rest_framework.serializers import *
 
 from .models import *
 
+from rest_framework_jwt.settings import api_settings
+jwt_payload_handler = api_settings.JWT_PAYLOAD_HANDLER
+jwt_encode_handler  = api_settings.JWT_ENCODE_HANDLER
+
+
 class SignUp(Serializer):
     first_name=CharField(max_length=20)
     last_name = CharField(max_length=20)
@@ -25,7 +30,7 @@ class SignUp(Serializer):
         username = validated_data.get('username')
         user_type=validated_data.get('user_type')
 
-        user=User.objects.create_user(first_name=first_name,last_name=last_name,email=email,username=username,user_type=1)
+        user=User.objects.create_user(user_type=user_type,first_name=first_name,last_name=last_name,email=email,username=username)
         user.set_password(password)
         user.save()
         return validated_data
@@ -36,7 +41,6 @@ class SignUp(Serializer):
         instance.email=validated_data.get('email')
         instance.save()
         return validated_data
-
 
 class NoteSerializer(Serializer):
     name=CharField(max_length=30, error_messages={'required':"Name is required","blank":"name cannot be blank"})
@@ -52,3 +56,22 @@ class NoteSerializer(Serializer):
         instance.description = validated_data.get('description')
         instance.save()
         return validated_data
+
+class LoginSerializer(Serializer):
+    email=EmailField(error_messages={'required':'email key is required','blank':'email is required'})
+    password=CharField(error_messages={'required':'password key is required','blank':'password is required'})
+    token=CharField(read_only=True,required=False)
+
+    def validate(self,data):
+        qs=User.objects.filter(email=data.get('email'))
+        if not qs.exists():
+            raise ValidationError("No account with this email")
+
+        user=qs.first()
+        if user.check_password(data.get('password'))==False:
+            raise ValidationError("Invalid Password")
+        payload =  jwt_payload_handler(user)
+        token   =  jwt_encode_handler(payload)
+        data['token'] ='JWT '+str(token)
+        return data
+
